@@ -13,6 +13,8 @@ function Entity:add(component)
 
     self.components[component.__name] = component
 
+    component.owner = self
+
     if self.eventManager and isNew then
         self.eventManager:fireEvent(ComponentAdded(self, component.__name))
     end
@@ -21,6 +23,7 @@ end
 -- Removes a component from the entity.
 function Entity:remove(name)
     if self.components[name] then
+        component.owner = nil
         self.components[name] = nil
     end
     if self.eventManager then
