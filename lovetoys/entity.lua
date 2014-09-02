@@ -14,6 +14,9 @@ function Entity:add(component)
     self.components[component.__name] = component
 
     component.owner = self
+    if component.on_added and type(component.on_added) == "function" then
+        component:on_added()
+    end
 
     if self.eventManager and isNew then
         self.eventManager:fireEvent(ComponentAdded(self, component.__name))
