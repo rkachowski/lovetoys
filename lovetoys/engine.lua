@@ -24,11 +24,12 @@ function Engine:__init()
     self.requirements = {}
     self.entityLists = {}
     self.eventManager = EventManager()
-
+    
     self.allSystems = {}
     self.logicSystems = {}
     self.drawSystems = {}
-
+    self.allSystemCollections = {self.logicSystems, self.drawSystems}
+    
     self.freeIds = {}
     self.maxId = 1
     self.eventManager:addListener("ComponentRemoved", {self, self.componentRemoved})
@@ -38,7 +39,7 @@ end
 function Engine:addEntity(entity)
     
     entity.eventManager = self.eventManager
-
+    
     -- Getting the next free ID or insert into table
     if #self.freeIds == 0 then
         entity.id = self.maxId
@@ -48,12 +49,12 @@ function Engine:addEntity(entity)
         entity.id = table.remove(self.freeIds, #self.freeIds)
         self.entities[entity.id] = entity
     end
-
+    
     for index, component in pairs(entity.components) do
         -- Adding Entity to specific Entitylist
         if not self.entityLists[component.__name] then self.entityLists[component.__name] = {} end
         self.entityLists[component.__name][entity.id] = entity
-
+        
         -- Adding Entity to System if all requirements are granted
         if self.requirements[component.__name] then
             for index2, system in pairs(self.requirements[component.__name]) do
@@ -90,6 +91,11 @@ function Engine:removeEntity(entity)
     end
 end
 
+local function addSystemTo(systemCollection, system)
+    table.insert(systemCollection, system)
+    table.sort(systemCollection, function(a, b) return a.priority < b.priority end)
+end
+
 function Engine:addSystem(system, typ, priority)
     if priority then
         system.priority = priority
@@ -102,14 +108,17 @@ function Engine:addSystem(system, typ, priority)
     end
     -- Adding System to draw or logic table
     if typ == "draw" then
-        table.insert(self.drawSystems, system)
-        table.sort(self.drawSystems, function(a, b) return a.priority < b.priority end)
+        addSystemTo(self.drawSystems, system)
     elseif typ == "logic" then
-        table.insert(self.logicSystems, system)
-        table.sort(self.logicSystems, function(a, b) return a.priority < b.priority end)
+        addSystemTo(self.logicSystems, system)
+    elseif typ == "all" then
+        for _, collection in pairs(self.allSystemCollections) do
+            addSystemTo(collection, system)
+        end
     end
+    
     table.insert(self.allSystems, system)
-
+    
     -- Registering the systems requirements and saving them in a special table for fast access
     for index, value in pairs(system:requires()) do
         if type(value) == "string" then
@@ -141,7 +150,7 @@ function Engine:removeSystem(system)
         end
     end
     if requirements ~= nil then 
-    --  Remove the System from all requirement lists
+        --  Remove the System from all requirement lists
         for k, v in pairs(requirements) do
             if type(v) == "string" then
                 for k2, v2 in pairs(self.requirements[v]) do
@@ -149,7 +158,7 @@ function Engine:removeSystem(system)
                         table.remove(self.requirements, k2)
                     end
                 end
-            -- Removing if it has subtables
+                -- Removing if it has subtables
             elseif type(v) == "table" then
                 for k2, v2 in pairs(v) do
                     for k3, v3 in pairs(self.requirements[v2]) do
@@ -160,7 +169,7 @@ function Engine:removeSystem(system)
                 end
             end
         end
-
+        
         -- Remove the system from all systemlists
         for k, v in pairs(self.drawSystems) do
             if v.__name == system then
