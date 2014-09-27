@@ -28,7 +28,9 @@ function Engine:__init()
     self.allSystems = {}
     self.logicSystems = {}
     self.drawSystems = {}
-    self.allSystemCollections = {self.logicSystems, self.drawSystems}
+    self.inputSystems = {}
+    
+    self.allSystemCollections = {self.logicSystems, self.drawSystems, self.inputSystems}
     
     self.freeIds = {}
     self.maxId = 1
@@ -82,7 +84,7 @@ function Engine:removeEntity(entity)
     if self.entities[entity.id] then
         self.entities[entity.id] = nil
     else
-        print("Trying to remove non existing entity from engine.")
+        print("Trying to remove non existent entity from engine.")
         print("Entity id: " .. entity.id)
         print("Entity's components:")
         for index, component in pairs(entity.components) do
@@ -102,7 +104,7 @@ function Engine:addSystem(system, typ, priority)
     end
     for index, value in pairs(self.allSystems) do
         if value.__name == system.__name then
-            print("Lovetoys: " .. system.__name .. " already existing. Aborting")
+            print("Lovetoys: " .. system.__name .. " already exists. Aborting")
             return
         end
     end
@@ -111,6 +113,8 @@ function Engine:addSystem(system, typ, priority)
         addSystemTo(self.drawSystems, system)
     elseif typ == "logic" then
         addSystemTo(self.logicSystems, system)
+    elseif typ == "input" then
+        addSystemTo(self.inputSystems, system)
     elseif typ == "all" then
         for _, collection in pairs(self.allSystemCollections) do
             addSystemTo(collection, system)
@@ -171,18 +175,15 @@ function Engine:removeSystem(system)
         end
         
         -- Remove the system from all systemlists
-        for k, v in pairs(self.drawSystems) do
-            if v.__name == system then
-                table.remove(self.drawSystems, k)
-            end
-        end
-        for k, v in pairs(self.logicSystems) do
-            if v.__name == system then
-                table.remove(self.logicSystems, k)
+        for _, collection in pairs(self.allSystemCollections) do
+            for k, v in pairs(collection)do
+                if v.__name == system then
+                    table.remove(collection, k)
+                end
             end
         end
     else
-        print("Lovetoys: " .. system .. " isn't existing. System can't be removed from engine.")
+        print("Lovetoys: " .. system .. " doesn't exist. System can't be removed from engine.")
     end
 end
 
@@ -195,6 +196,46 @@ end
 function Engine:draw()
     for index, system in ipairs(self.drawSystems) do
         system:draw()
+    end
+end
+
+function Engine:mousepressed(x, y, button)
+    for index, system in ipairs(self.inputSystems) do
+        if system.mousepressed then
+            system:mousepressed(x, y, button)
+        end
+    end
+end
+
+function Engine:mousereleased(x, y, button)
+    for index, system in ipairs(self.inputSystems) do
+        if system.mousereleased then
+            system:mousereleased(x, y, button)
+        end
+    end
+end
+
+function Engine:keypressed(key, isrepeat)
+    for index, system in ipairs(self.inputSystems) do
+        if system.keypressed then
+            system:keypressed(key, isrepeat)
+        end
+    end
+end
+
+function Engine:keyreleased(key)
+    for index, system in ipairs(self.inputSystems) do
+        if system.keyreleased then
+            system:keyreleased(key)
+        end
+    end
+end
+
+function Engine:textinput(text)
+    for index, system in ipairs(self.inputSystems) do
+        if system.textinput then
+            self.engine:textinput(text)
+        end
     end
 end
 
@@ -225,7 +266,7 @@ function Engine.componentAdded(self, event)
     end
 end
 
--- Returns an Entitylist for a specific component. If the Entitylist doesn't exists yet it'll be created and returned.
+-- Returns an Entitylist for a specific component. If the Entitylist doesn't exist yet it'll be created and returned.
 function Engine:getEntityList(component)
     if not self.entityLists[component] then self.entityLists[component] = {} end
     return self.entityLists[component]
